@@ -13,6 +13,8 @@ import { ReminderManager } from "src/scheduling/reminder-manager";
 import { REVIEW_QUEUE_VIEW_TYPE } from "src/ui/obsidian-ui-components/item-views/review-queue-list-view";
 import { UIManager } from "src/ui/ui-manager";
 import { TextDirection } from "src/utils/strings";
+import { APIManager } from "src/api/api-manager";
+import { SRRestAPIExtension } from "src/api/rest-api-extension";
 
 export default class SRPlugin extends Plugin {
     private _uiManager: UIManager | null = null;
@@ -21,6 +23,8 @@ export default class SRPlugin extends Plugin {
     private _nextNoteReviewHandler: NextNoteReviewHandler | null = null;
     private _commandManager: CommandManager | null = null;
     private _reminderManager: ReminderManager | null = null;
+    private _apiManager: APIManager | null = null;
+    private _restApiExtension: SRRestAPIExtension | null = null;
     public isInitialized: boolean = false;
 
     async onload(): Promise<void> {
@@ -64,6 +68,32 @@ export default class SRPlugin extends Plugin {
                 await this.uiManager.onLayoutReady();
                 this.commandManager.onLayoutReady();
                 this._reminderManager = new ReminderManager(this, this.uiManager, this.dataManager);
+
+                // Initialize API manager for REST API exposure
+                this._apiManager = new APIManager(this);
+                this._restApiExtension = new SRRestAPIExtension(this, this._apiManager);
+
+                // Register routes with Local REST API if available
+                try {
+                    const appAny = this.app as any;
+                    if (appAny.plugins?.enabledPlugins?.has("obsidian-local-rest-api")) {
+                        this._restApiExtension.registerRoutes();
+                    }
+                } catch {
+                    // Local REST API plugin not available
+                }
+
+                // Listen for Local REST API plugin load event
+                this.registerEvent(
+                    (this.app.workspace as any).on(
+                        "obsidian-local-rest-api:loaded",
+                        () => {
+                            if (this._restApiExtension) {
+                                this._restApiExtension.registerRoutes();
+                            }
+                        }
+                    )
+                );
 
                 this.isInitialized = true;
                 this._reminderManager.restartReviewReminders();
@@ -133,6 +163,12 @@ export default class SRPlugin extends Plugin {
         this.app.workspace.getLeavesOfType(REVIEW_QUEUE_VIEW_TYPE).forEach((leaf) => leaf.detach());
         this.uiManager.destroy();
         this.commandManager.onunload();
+        if (this._restApiExtension) {
+            this._restApiExtension.unregister();
+        }
+        if (this._apiManager) {
+            this._apiManager.destroy();
+        }
     }
 
     public addCustomHotkeys() {
