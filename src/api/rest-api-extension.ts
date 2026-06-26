@@ -1,23 +1,34 @@
 import SRPlugin from "src/main";
 import { APIManager } from "src/api/api-manager";
-import { getAPI, LocalRestApiPublicApi } from "obsidian-local-rest-api";
 
 export class SRRestAPIExtension {
   private plugin: SRPlugin;
   private apiManager: APIManager;
-  private restApi: LocalRestApiPublicApi | null = null;
+  private restApi: any = null;
 
   constructor(plugin: SRPlugin, apiManager: APIManager) {
     this.plugin = plugin;
     this.apiManager = apiManager;
   }
 
+  private getRestAPI(): any {
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-var-requires, global-require
+      const { getAPI } = require("obsidian-local-rest-api");
+      return getAPI(this.plugin.app, this.plugin.manifest);
+    } catch (error) {
+      console.warn("SRRestAPIExtension: Local REST API plugin not available", error);
+      return null;
+    }
+  }
+
   public registerRoutes() {
     try {
-      this.restApi = getAPI(this.plugin.app, this.plugin.manifest);
+      this.restApi = this.getRestAPI();
+      if (!this.restApi) return;
 
       // GET current SR review state
-      this.restApi.addRoute("/spaced-repetition/state").get((request, response) => {
+      this.restApi.addRoute("/spaced-repetition/state").get((_request: any, response: any) => {
         const state = this.apiManager.getState();
         response.status(200).json(state);
       });
@@ -25,7 +36,7 @@ export class SRRestAPIExtension {
       // GET current card details
       this.restApi
         .addRoute("/spaced-repetition/current-card")
-        .get((request, response) => {
+        .get((_request: any, response: any) => {
           const state = this.apiManager.getState();
           if (state.currentCard) {
             response.status(200).json(state.currentCard);
@@ -37,7 +48,7 @@ export class SRRestAPIExtension {
       // GET session progress
       this.restApi
         .addRoute("/spaced-repetition/progress")
-        .get((request, response) => {
+        .get((_request: any, response: any) => {
           const state = this.apiManager.getState();
           if (state.sessionProgress) {
             response.status(200).json(state.sessionProgress);
@@ -49,7 +60,7 @@ export class SRRestAPIExtension {
       // GET is reviewing status
       this.restApi
         .addRoute("/spaced-repetition/is-reviewing")
-        .get((request, response) => {
+        .get((_request: any, response: any) => {
           const state = this.apiManager.getState();
           response.status(200).json({ isReviewing: state.isReviewing });
         });
