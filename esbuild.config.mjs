@@ -15,7 +15,7 @@ const moveToRootPlugin = {
     name: "move-to-root",
     setup(build) {
         build.onEnd(async (_) => {
-            const cssFile = path.join("build", "main.css");
+            const cssFile = path.join("main.css");
             const targetFile = "styles.css";
 
             if (fs.existsSync(cssFile)) {
@@ -42,7 +42,7 @@ const context = await esbuild.context({
     sourcemap: "inline",
     sourcesContent: !prod,
     treeShaking: true,
-    outfile: "build/main.js",
+    outfile: "main.js",
     loader: {
         ".css": "css",
     },

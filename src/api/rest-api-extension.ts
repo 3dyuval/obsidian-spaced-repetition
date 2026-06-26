@@ -13,11 +13,21 @@ export class SRRestAPIExtension {
 
   private getRestAPI(): any {
     try {
-      // eslint-disable-next-line @typescript-eslint/no-var-requires, global-require
-      const { getAPI } = require("obsidian-local-rest-api");
+      // Get the Local REST API plugin instance from Obsidian's plugin system
+      const restApiPlugin = (this.plugin.app as any).plugins?.plugins?.["obsidian-local-rest-api"];
+      if (!restApiPlugin) {
+        console.warn("SRRestAPIExtension: Local REST API plugin not loaded");
+        return null;
+      }
+      // The plugin exposes a getPublicApi or getAPI method
+      const getAPI = restApiPlugin.getPublicApi || restApiPlugin.getAPI;
+      if (!getAPI) {
+        console.warn("SRRestAPIExtension: Local REST API plugin has no API export");
+        return null;
+      }
       return getAPI(this.plugin.app, this.plugin.manifest);
     } catch (error) {
-      console.warn("SRRestAPIExtension: Local REST API plugin not available", error);
+      console.warn("SRRestAPIExtension: Error getting Local REST API", error);
       return null;
     }
   }
